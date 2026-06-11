@@ -2,8 +2,8 @@
 <html lang="th" class="light">
 <!-- 
   =============================================================
-  ระบบเกมคณิตศาสตร์พูดได้และอัลกอริทึมแปลงเสียงภาษาไทยเป็นตัวเลข (ปรับปรุงล่าสุด)
-  (Thai Math Voice Interactive Board - Improved Version)
+  ระบบเกมคณิตศาสตร์พูดได้และอัลกอริทึมแปลงเสียงภาษาไทยเป็นตัวเลข (ปรับปรุงความเสถียรคำสั่ง)
+  (Thai Math Voice Interactive Board - Secure Command Version)
   
   ผู้พัฒนา: พัฒนาและปรับปรุงจากแนวคิดเดิมของนายชาณัตถ์ รุ่งรัตน์
   =============================================================
@@ -64,6 +64,10 @@
         <span class="block text-[10px] text-indigo-300 font-bold">ข้อที่</span>
         <span id="ui-question-idx" class="text-sm font-bold text-emerald-400">0 / 1</span>
       </div>
+      <div class="bg-indigo-800/60 px-3 py-1 rounded-lg border border-indigo-700 text-center">
+        <span class="block text-[10px] text-indigo-300 font-bold">คะแนนรวม</span>
+        <span id="ui-total-score" class="text-sm font-bold text-white">0</span>
+      </div>
     </div>
   </header>
 
@@ -84,8 +88,8 @@
               <p class="text-slate-500 text-xs mt-0.5 leading-relaxed">
                 พูดคำสั่งโดยระบุ <span class="font-bold text-slate-800">เครื่องหมาย + หลักตัวเลข + จำนวนข้อ</span><br>
                 เช่น: <br>
-                - <span class="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700">"สร้างโจทย์การบวกหลักร้อย"</span> (สุ่ม 1 ข้อ)<br>
-                - <span class="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700">"ตั้งโจทย์ลบหลักพันห้าข้อ"</span>
+                - <span class="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700 text-[11px]">"สร้างโจทย์การบวกหลักร้อย"</span> (สุ่ม 1 ข้อ)<br>
+                - <span class="bg-slate-100 px-1 py-0.5 rounded font-mono font-bold text-slate-700 text-[11px]">"ตั้งโจทย์ลบหลักพันห้าข้อ"</span>
               </p>
             </div>
 
@@ -120,7 +124,6 @@
         
         <!-- แถบแสดงสถานะชุดข้อคำถาม -->
         <div class="w-full flex justify-center space-x-2 mb-4" id="progress-dots-container">
-          <!-- แถบวงกลมแสดงความคืบหน้าจะเปลี่ยนตามจำนวนข้อที่ถูกสร้างขึ้นจริง -->
           <div class="w-4 h-4 rounded-full bg-slate-200"></div>
         </div>
 
@@ -171,7 +174,7 @@
     let currentMode = null;         // 'ADD', 'SUB', 'MUL', 'DIV'
     let currentScaleStr = 'ร้อย';   // 'หน่วย', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน'
     let questionIndex = 0;          
-    let totalQuestions = 1;         // หากไม่ระบุ ให้ตั้งค่าเริ่มต้นเป็น 1 ข้อ
+    let totalQuestions = 1;         // หากไม่กำหนด จะเลือกสุ่ม 1 ข้อ
     let score = 0;                  
     let currentQuiz = null;         
     let isListening = false;
@@ -323,13 +326,17 @@
     // อ่านออกเสียงลงท้าย "ครับ"
     function speakThai(text) {
       if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'th-TH';
-        const voices = window.speechSynthesis.getVoices();
-        const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
-        if (thaiVoice) utterance.voice = thaiVoice;
-        window.speechSynthesis.speak(utterance);
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'th-TH';
+          const voices = window.speechSynthesis.getVoices();
+          const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
+          if (thaiVoice) utterance.voice = thaiVoice;
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          console.warn("ไม่สามารถสังเคราะห์เสียงพูดได้ในขณะนี้:", e);
+        }
       }
     }
 
@@ -362,7 +369,6 @@
           break;
         case 'SUB':
           num1 = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-          // มั่นใจผลลัพธ์ไม่ติดลบ
           num2 = Math.floor(Math.random() * (num1 - range.min + 1)) + Math.min(range.min, num1);
           if (num1 === num2) num2 = Math.max(1, num2 - 1);
           symbol = "-";
@@ -370,16 +376,14 @@
           break;
         case 'MUL':
           num1 = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-          // เพื่อให้คิดเลขในใจได้ง่ายในการคูณ นำตัวคูณเป็นหลักหน่วยหรือหลักสิบต้นๆ
           num2 = (scaleStr === 'หน่วย') ? (Math.floor(Math.random() * 8) + 2) : (Math.floor(Math.random() * 8) + 2);
           symbol = "×";
           answer = num1 * num2;
           break;
         case 'DIV':
-          // ผลลัพธ์ (ผลหาร) จะอยู่ในช่วงหลักที่ต้องการ
           answer = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
-          num2 = Math.floor(Math.random() * 8) + 2; // ตัวหาร 2-9
-          num1 = num2 * answer; // ตัวตั้ง
+          num2 = Math.floor(Math.random() * 8) + 2; 
+          num1 = num2 * answer; 
           symbol = "÷";
           break;
       }
@@ -397,7 +401,7 @@
     function initNewQuizRound(modeCode, scaleStr, qCount) {
       currentMode = modeCode;
       currentScaleStr = scaleStr || 'ร้อย';
-      totalQuestions = qCount || 1; // หากไม่กำหนด จะเลือกสุ่ม 1 ข้อ
+      totalQuestions = qCount || 1; 
       questionIndex = 1;
       score = 0;
       quizHistory = [];
@@ -427,7 +431,6 @@
       const exprEl = document.getElementById('math-expression');
       const descEl = document.getElementById('math-text-description');
       
-      // แสดงเฉพาะตัวโจทย์ โดยซ่อนตัวอย่างเฉลยคำตอบในหน้าโจทย์เพื่อความท้าทาย
       exprEl.textContent = `${currentQuiz.num1.toLocaleString()} ${currentQuiz.operatorSymbol} ${currentQuiz.num2.toLocaleString()} = ?`;
       descEl.innerHTML = `วิเคราะห์หาคำตอบแล้วพูดตอบเสียงดังฟังชัดได้เลยครับ`;
       
@@ -479,10 +482,8 @@
         quizHistory.push(true);
         speakThai("ถูกต้องครับ");
 
-        // หากตอบถูกให้ไปข้อถัดไป หรือถ้ามีข้อเดียวให้ทำการสุ่มชุดตัวเลขมาใหม่ในคำสั่งเดิมทันที
         setTimeout(() => {
           if (totalQuestions === 1) {
-            // สุ่มใหม่เรื่อยๆ ในข้อเสนอเดิม
             quizHistory = [];
             loadNextQuestion();
           } else {
@@ -557,36 +558,43 @@
     }
 
     // ==========================================
-    // ตัวประมวลผลคำสั่งที่ใกล้เคียง (Fuzzy Command Parser)
+    // อัปเดตตัวตรวจจับคำสั่งและระบบดักจับช่องว่าง (Fuzzy Command Parser)
     // ==========================================
     function parseVoiceCommand(transcript) {
-      const text = transcript.toLowerCase();
+      if (!transcript) return false;
+
+      // 1. ทำความสะอาดช่องว่างและสัญลักษณ์ทั้งหมด เพื่อตัดปัญหาเว้นวรรคคำของกูเกิลภาษาไทย
+      const cleanText = transcript.replace(/[\s\-\_\.\,\?\!\:\"]/g, "").toLowerCase();
       
-      // ตรวจหาเจตจำนงการสร้างโจทย์ใหม่แบบยืดหยุ่น เช่น ส้รางจดหมาย, ตั้งโจทย์, โจด, จดหมาย, สร้าง, ส้าง
-      const isCreateCommand = /(สร้าง|ส้าง|ตั้ง|ตั่ง|โจทย์|โจด|จดหมาย|ใหม่|สุ่ม|ขอ)/.test(text);
+      // 2. ขยายกลุ่มคำครอบคลุมกรณีออกเสียงไม่ชัดเจนหรือสะกดเพี้ยน (Fuzzy Matching)
+      const hasIntentToCreate = /(สร้าง|ส้าง|ตั้ง|ตั่ง|โจทย์|โจด|จดหมาย|ทางโจทย์|ล้างโจทย์|ทำโจทย์|ขอโจทย์|เล่นเกม|เริ่มเกม)/.test(cleanText);
 
-      if (isCreateCommand) {
-        // 1. ค้นหาเครื่องหมาย/การดำเนินการ
-        let mode = 'ADD'; // ค่าเริ่มต้นหากหาไม่เจอ
-        if (/(บวก|บ้วก|บก)/.test(text)) mode = 'ADD';
-        else if (/(ลบ|รบ|นบ)/.test(text)) mode = 'SUB';
-        else if (/(คูณ|คูน|พูน)/.test(text)) mode = 'MUL';
-        else if (/(หาร|หาน|หัน)/.test(text)) mode = 'DIV';
+      if (hasIntentToCreate) {
+        // ค้นหารูปแบบการคํานวณ
+        let mode = 'ADD'; 
+        if (/(บวก|บ้วก|บก|รวม|บวกเลข)/.test(cleanText)) mode = 'ADD';
+        else if (/(ลบ|รบ|นบ|ลบเลข)/.test(cleanText)) mode = 'SUB';
+        else if (/(คูณ|คูน|พูน|คูณเลข)/.test(cleanText)) mode = 'MUL';
+        else if (/(หาร|หาน|หัน|หารเลข)/.test(cleanText)) mode = 'DIV';
+        else {
+          // หากไม่ระบุประเภทเครื่องหมาย ให้คงประเภทเครื่องหมายล่าสุดไว้
+          mode = currentMode || 'ADD';
+        }
 
-        // 2. ค้นหาหลักจำนวนตัวเลข
-        let scale = 'ร้อย'; // ค่าเริ่มต้น
-        if (text.includes("หน่วย")) scale = "หน่วย";
-        else if (text.includes("สิบ")) scale = "สิบ";
-        else if (text.includes("ร้อย") || text.includes("รอย")) scale = "ร้อย";
-        else if (text.includes("พัน")) scale = "พัน";
-        else if (text.includes("หมื่น")) scale = "หมื่น";
-        else if (text.includes("แสน")) scale = "แสน";
-        else if (text.includes("ล้าน")) scale = "ล้าน";
+        // ค้นหาระดับหลักตัวเลข
+        let scale = currentScaleStr || 'ร้อย'; 
+        if (cleanText.includes("หน่วย")) scale = "หน่วย";
+        else if (cleanText.includes("สิบ")) scale = "สิบ";
+        else if (cleanText.includes("ร้อย") || cleanText.includes("รอย")) scale = "ร้อย";
+        else if (cleanText.includes("พัน")) scale = "พัน";
+        else if (cleanText.includes("หมื่น")) scale = "หมื่น";
+        else if (cleanText.includes("แสน")) scale = "แสน";
+        else if (cleanText.includes("ล้าน")) scale = "ล้าน";
 
-        // 3. ค้นหาจำนวนข้อ
-        let qCount = 1; // หากไม่ระบุ ให้สร้าง 1 ข้อไว้ตามเงื่อนไข
-        const numPattern = /(\d+|หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ)\s*ข้อ/;
-        const match = text.match(numPattern);
+        // ค้นหาจำนวนข้อสอบที่ต้องการสร้าง
+        let qCount = 1; 
+        const numPattern = /(หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ|\d+)ข้อ/;
+        const match = cleanText.match(numPattern);
         if (match) {
           const matchedVal = match[1];
           if (/^\d+$/.test(matchedVal)) {
@@ -595,6 +603,9 @@
             const numMap = { "หนึ่ง": 1, "สอง": 2, "สาม": 3, "สี่": 4, "ห้า": 5, "หก": 6, "เจ็ด": 7, "แปด": 8, "เก้า": 9, "สิบ": 10 };
             qCount = numMap[matchedVal] || 1;
           }
+        } else {
+          // หากตรวจพบบทสนทนาให้ตั้งโจทย์แต่ไม่ระบุคำว่าข้อ ให้สร้าง 1 ข้อไว้ก่อนเป็นเกณฑ์หลัก
+          qCount = 1;
         }
 
         speakThai(`สร้างโจทย์ใหม่หลัก${scale}จำนวน${qCount}ข้อครับ`);
@@ -602,19 +613,19 @@
         return true;
       }
 
-      // ตรวจหาคำสั่งเฉลย
-      if (/(เฉลย|เฉลยคำตอบ|เฉย|บอกหน่อย)/.test(text)) {
+      // ตรวจหาคำสั่งเฉลยแบบไม่มีเว้นวรรค
+      if (/(เฉลย|เฉลยคำตอบ|เฉย|บอกหน่อย|เฉยๆ)/.test(cleanText)) {
         triggerRevealAnswer();
         return true;
       }
 
-      // ตรวจหาคำสั่งถัดไป
-      if (/(ถัดไป|ข้าม|ข้ามข้อ|ข้อถัดไป|ถัดปัย)/.test(text)) {
+      // ตรวจหาคำสั่งข้ามข้อแบบไม่มีเว้นวรรค
+      if (/(ถัดไป|ข้าม|ข้ามข้อ|ข้อถัดไป|ถัดปัย|เปลี่ยนข้อ)/.test(cleanText)) {
         triggerNextQuestionCommand();
         return true;
       }
 
-      return false; // ไม่ตรงกับคำสั่งระบบ ให้ส่งต่อไปประมวลผลเป็นตัวเลขคำตอบ
+      return false; 
     }
 
     // ==========================================
@@ -659,10 +670,10 @@
           const resultText = event.results[event.results.length - 1][0].transcript.trim();
           document.getElementById('speech-live-text').textContent = resultText;
           
-          // ตรวจสอบคำสั่งระบบก่อนเป็นอันดับแรก
+          // ตรวจสอบความถูกต้องและสอดคล้องกับคำสั่งระบบก่อนเป็นอันดับแรก
           const isCommand = parseVoiceCommand(resultText);
           
-          // หากไม่ใช่คำสั่งระบบ และมีโจทย์กำลังเล่นอยู่ ให้แปลงค่าเป็นตัวเลขส่งไปพิจารณาตอบ
+          // หากไม่ใช่คำสั่งควบคุมระบบ และมีโจทย์กำลังเปิดเล่นค้างอยู่ ให้ดึงตัวเลขไปตรวจสอบคำตอบ
           if (!isCommand && currentQuiz) {
             const potentialNumber = parseThaiNumberWord(resultText);
             if (potentialNumber !== null) {
