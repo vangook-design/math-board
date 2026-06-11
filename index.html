@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="th" class="light">
+<!-- 
+  =============================================================
+  ระบบเกมคณิตศาสตร์พูดได้และอัลกอริทึมแปลงเสียงภาษาไทยเป็นตัวเลข
+  (Thai Math Voice Interactive Board for Education)
+  
+  ผู้พัฒนา: พัฒนาและปรับปรุงจากแนวคิดเดิมของนายชาณัตถ์ รุ่งรัตน์
+  =============================================================
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>กระดานเกมคณิตศาสตร์พูดได้ (Math Voice Board)</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&family=Sarabun:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Mali', 'Sarabun', sans-serif;
+      background: url('https://www.transparenttextures.com/patterns/cubes.png'), linear-gradient(135deg, #e0f2fe 0%, #fef08a 100%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+    .game-font { font-family: 'Mali', cursive; }
+    
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(8px);
+      border: 3px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col justify-between">
+
+  <!-- ส่วนหัวกระดาน -->
+  <header class="w-full bg-indigo-900 text-white py-4 px-6 shadow-md flex flex-wrap justify-between items-center z-10">
+    <div class="flex items-center space-x-3">
+      <div class="bg-amber-400 text-indigo-900 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow transform rotate-3">
+        <i class="fa-solid fa-calculator"></i>
+      </div>
+      <div>
+        <h1 class="text-xl md:text-2xl font-black game-font">กระดานคณิตศาสตร์พูดได้</h1>
+        <p class="text-xs text-indigo-200">ระบบสุ่มโจทย์ ตรวจสอบ และสั่งการด้วยเสียงภาษาไทย</p>
+      </div>
+    </div>
+    
+    <!-- สถิติรอบปัจจุบัน -->
+    <div class="flex items-center space-x-4 mt-2 md:mt-0">
+      <div class="bg-indigo-800/60 px-3 py-1 rounded-lg border border-indigo-700 text-center">
+        <span class="block text-[10px] text-indigo-300 font-bold">โหมดปัจจุบัน</span>
+        <span id="ui-current-mode" class="text-sm font-bold text-yellow-300">-</span>
+      </div>
+      <div class="bg-indigo-800/60 px-3 py-1 rounded-lg border border-indigo-700 text-center">
+        <span class="block text-[10px] text-indigo-300 font-bold">ข้อที่</span>
+        <span id="ui-question-idx" class="text-sm font-bold text-emerald-400">0 / 5</span>
+      </div>
+      <div class="bg-indigo-800/60 px-3 py-1 rounded-lg border border-indigo-700 text-center">
+        <span class="block text-[10px] text-indigo-300 font-bold">คะแนนรวม</span>
+        <span id="ui-total-score" class="text-sm font-bold text-white">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- พื้นที่กระดานหลัก -->
+  <main class="flex-grow w-full max-w-6xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch my-2">
+    
+    <!-- ฝั่งซ้าย: คู่มือและเสียงสั่งการ -->
+    <section class="lg:col-span-1 flex flex-col space-y-4">
+      <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between flex-grow">
+        <div>
+          <h2 class="text-md font-bold text-indigo-900 border-b pb-2 mb-3">
+            <i class="fa-solid fa-microphone-lines text-amber-500 mr-1 animate-pulse"></i> คำสั่งเสียงที่ระบบรองรับ
+          </h2>
+          
+          <div class="space-y-3 text-xs md:text-sm">
+            <div class="p-2.5 bg-white/60 rounded-xl border border-indigo-50/50 hover:bg-white transition">
+              <p class="font-extrabold text-indigo-600">🗣️ ตั้งโจทย์ใหม่</p>
+              <p class="text-slate-500 text-xs mt-0.5">พูดว่า: <span class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono font-bold">"สร้างโจทย์การบวก"</span>, <span class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono font-bold">"การลบ"</span>, <span class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono font-bold">"การคูณ"</span> หรือ <span class="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono font-bold">"การหาร"</span></p>
+            </div>
+
+            <div class="p-2.5 bg-white/60 rounded-xl border border-indigo-50/50 hover:bg-white transition">
+              <p class="font-extrabold text-emerald-600">🗣️ การตอบคำถาม</p>
+              <p class="text-slate-500 text-xs mt-0.5">นักเรียนพูดเฉพาะคำตอบ เช่น <span class="bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded font-mono font-bold">"หนึ่งพันห้าร้อย"</span> หรือ <span class="bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded font-mono font-bold">"สองพันห้า"</span></p>
+            </div>
+
+            <div class="p-2.5 bg-white/60 rounded-xl border border-indigo-50/50 hover:bg-white transition">
+              <p class="font-extrabold text-amber-600">🗣️ ควบคุมระบบ</p>
+              <p class="text-slate-500 text-xs mt-0.5">พูดว่า: <span class="bg-amber-50 text-amber-800 px-1 py-0.5 rounded font-mono font-bold">"เฉลย"</span> เพื่อดูผลลัพธ์ หรือ <span class="bg-amber-50 text-amber-800 px-1 py-0.5 rounded font-mono font-bold">"ถัดไป"</span> เพื่อข้ามข้อ</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-200/60">
+          <div class="flex items-center space-x-2 mb-2">
+            <div id="mic-status-light" class="w-3.5 h-3.5 rounded-full bg-rose-500"></div>
+            <span id="mic-status-text" class="text-xs font-bold text-slate-500">ปิดการรับเสียง</span>
+          </div>
+          <button id="btn-toggle-mic" onclick="toggleMic()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl transition text-sm flex items-center justify-center space-x-2">
+            <i id="btn-mic-icon" class="fa-solid fa-microphone"></i>
+            <span id="btn-mic-text">เปิดการรับเสียงพูด</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ฝั่งขวา: กระดานแสดงโจทย์หลัก -->
+    <section class="lg:col-span-3 flex flex-col space-y-4">
+      <div class="glass-panel rounded-3xl p-6 md:p-8 flex flex-col justify-between items-center text-center relative flex-grow min-h-[400px]">
+        
+        <!-- แถบแสดงสถานะชุดข้อคำถาม -->
+        <div class="w-full flex justify-center space-x-2 mb-4" id="progress-dots-container">
+          <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+          <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+          <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+          <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+          <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+        </div>
+
+        <!-- หน้าจอแสดงโจทย์เลขขนาดใหญ่ -->
+        <div class="my-auto space-y-6 w-full">
+          <div id="display-math-container" class="transition-all duration-300">
+            <p id="math-expression" class="text-5xl md:text-7xl font-black text-indigo-950 tracking-wider font-mono">
+              กรุณาสั่งเริ่มเกม
+            </p>
+            <p id="math-text-description" class="text-sm md:text-base text-slate-500 mt-3 font-semibold">
+              กรุณาเปิดไมโครโฟนแล้วพูดว่า <span class="text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded">"สร้างโจทย์การบวก"</span> (หรือโหมดอื่น ๆ) เพื่อเริ่มต้นสุ่มข้อสอบภาษาไทย
+            </p>
+          </div>
+
+          <!-- กล่องข้อความการประมวลผลคำตอบล่าสุด -->
+          <div id="feedback-panel" class="hidden max-w-md mx-auto p-4 rounded-2xl border transition-all duration-300">
+            <span id="feedback-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase inline-block mb-1">ผลการประเมิน</span>
+            <h4 id="feedback-title" class="text-xl font-bold">-</h4>
+            <p id="feedback-detail" class="text-xs text-slate-500 mt-1">-</p>
+          </div>
+        </div>
+
+        <!-- แถบล่างแสดงคำพูดแบบเรียลไทม์ -->
+        <div class="w-full bg-white/70 border border-slate-200 rounded-2xl p-3 flex flex-col md:flex-row items-center justify-between mt-4">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-waveform-lines text-indigo-500"></i>
+            <span class="text-xs font-bold text-slate-400">ข้อความเสียงที่ตรวจจับได้:</span>
+          </div>
+          <span id="speech-live-text" class="text-md font-bold text-indigo-900 mt-1 md:mt-0 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100 max-w-full truncate">
+            ไม่มีการพูดตรวจจับอยู่ในขณะนี้
+          </span>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="w-full text-center py-2 text-[10px] text-slate-400 font-semibold bg-white/30 backdrop-blur-sm">
+    พัฒนาและปรับปรุงสำหรับการเรียนการสอนคณิตศาสตร์โดยใช้ Web Speech API ภาษาไทย
+  </footer>
+
+  <script>
+    // ==========================================
+    // อัลกอริทึมจัดการตัวแปรและสถานะกระดาน (State Management)
+    // ==========================================
+    let currentMode = null;         // 'ADD', 'SUB', 'MUL', 'DIV'
+    let questionIndex = 0;          // 0 ถึง 4
+    let score = 0;                  
+    let totalQuestions = 5;
+    let currentQuiz = null;         // { num1, num2, operatorSymbol, answer, answerThaiText }
+    let isListening = false;
+    let recognition = null;
+    let quizHistory = [];           // บันทึกความถูกต้องของแต่ละข้อในรอบ
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      if (type === 'correct') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+        osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+      } else if (type === 'wrong') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+      } else if (type === 'win') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); 
+        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); 
+        osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); 
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+      }
+    }
+
+    // ==========================================
+    // อัลกอริทึมแปลงเสียงภาษาไทยเป็นตัวเลขคณิตศาสตร์
+    // ==========================================
+    function parseThaiNumberWord(thaiWord) {
+      if (!thaiWord) return null;
+      let text = thaiWord.trim().replace(/[\s\-\_\.\,\?]/g, "");
+      
+      // ลบคำวิเศษณ์หรือคำเชื่อมการตอบออกเพื่อหาเฉพาะส่วนที่เป็นตัวเลข
+      text = text.replace(/(ตอบว่า|คือ|ได้|คำตอบคือ|เท่ากับ|เป็น|บวก|ลบ|คูณ|หาร)/g, "");
+
+      // หากโปรแกรมตรวจจับเสียงได้แบบตัวเลขฐานอาหรับตรง ๆ อยู่แล้ว
+      if (/^\d+$/.test(text)) {
+        return parseInt(text);
+      }
+
+      if (text === "ศูนย์") return 0;
+
+      const units = { "หนึ่ง": 1, "เอ็ด": 1, "สอง": 2, "ยี่": 2, "สาม": 3, "สี่": 4, "ห้า": 5, "หก": 6, "เจ็ด": 7, "แปด": 8, "เก้า": 9 };
+      const scales = { "ล้าน": 1000000, "แสน": 100000, "หมื่น": 10000, "พัน": 1000, "ร้อย": 100, "สิบ": 10 };
+
+      const tokens = [];
+      let i = 0;
+      while (i < text.length) {
+        let matched = false;
+        for (let u in units) {
+          if (text.startsWith(u, i)) {
+            tokens.push({ type: 'unit', val: units[u], text: u });
+            i += u.length;
+            matched = true;
+            break;
+          }
+        }
+        if (matched) continue;
+        for (let s in scales) {
+          if (text.startsWith(s, i)) {
+            tokens.push({ type: 'scale', val: scales[s], text: s });
+            i += s.length;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          i++;
+        }
+      }
+
+      let sum = 0;
+      let temp = 0;
+      for (let idx = 0; idx < tokens.length; idx++) {
+        const t = tokens[idx];
+        if (t.type === 'unit') {
+          temp = t.val;
+          // ตรวจจับกรณีคำย่อในภาษาปาก เช่น "สองพันห้า" -> [สอง, พัน, ห้า] -> 2500
+          if (idx === tokens.length - 1 && idx > 0 && tokens[idx - 1].type === 'scale') {
+            const prevScale = tokens[idx - 1].val;
+            const shorthandScale = prevScale / 10;
+            if (shorthandScale >= 1) {
+              sum += temp * shorthandScale;
+              temp = 0;
+            } else {
+              sum += temp;
+              temp = 0;
+            }
+          }
+        } else if (t.type === 'scale') {
+          if (temp === 0 && (t.val === 10 || t.val > 10)) {
+            temp = 1; // ละคำว่าหนึ่งหน้าสิบ/ร้อย เช่น "สิบห้า" หรือ "ร้อยสอง"
+          }
+          if (t.val === 1000000) {
+            sum = (sum + temp) * 1000000;
+            temp = 0;
+          } else {
+            sum += temp * t.val;
+            temp = 0;
+          }
+        }
+      }
+      sum += temp;
+      return sum > 0 ? sum : null;
+    }
+
+    // ==========================================
+    // ตัวช่วยแปลงจากตัวเลขกลับเป็นคำอ่านภาษาไทยสำหรับการเฉลยแบบอ่านออกเสียง
+    // ==========================================
+    function numberToThaiWord(num) {
+      if (num === 0) return "ศูนย์";
+      const thNumbers = ["", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
+      const thUnits = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
+      
+      let str = "";
+      let numStr = num.toString();
+      let len = numStr.length;
+      
+      for (let i = 0; i < len; i++) {
+        let digit = parseInt(numStr.charAt(i));
+        let position = len - i - 1;
+        
+        if (digit !== 0) {
+          if (position === 1 && digit === 1) {
+            str += "สิบ";
+          } else if (position === 1 && digit === 2) {
+            str += "ยี่สิบ";
+          } else if (position === 0 && digit === 1 && len > 1) {
+            str += "เอ็ด";
+          } else {
+            str += thNumbers[digit] + thUnits[position];
+          }
+        }
+      }
+      return str;
+    }
+
+    // ==========================================
+    // ฟังก์ชันระบบอ่านออกเสียงคำตอบภาษาไทย (Text To Speech)
+    // ==========================================
+    function speakThai(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // ยกเลิกคิวเสียงเก่าย้อนหลัง
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'th-TH';
+        const voices = window.speechSynthesis.getVoices();
+        const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
+        if (thaiVoice) utterance.voice = thaiVoice;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // ==========================================
+    // ส่วนจำลองสุ่มตัวเลขสร้างข้อสอบคณิตศาสตร์ (Math Core Logic)
+    // ==========================================
+    function makeNewMathQuestion(mode) {
+      let num1, num2, symbol, answer;
+      switch (mode) {
+        case 'ADD':
+          num1 = Math.floor(Math.random() * 890) + 110; // 110 - 999
+          num2 = Math.floor(Math.random() * 890) + 110; 
+          symbol = "+";
+          answer = num1 + num2;
+          break;
+        case 'SUB':
+          num1 = Math.floor(Math.random() * 1800) + 200; // 200 - 1999
+          num2 = Math.floor(Math.random() * (num1 - 50)) + 10; // มั่นใจได้ว่าผลลัพธ์ไม่ติดลบ
+          symbol = "-";
+          answer = num1 - num2;
+          break;
+        case 'MUL':
+          num1 = Math.floor(Math.random() * 90) + 11; // 11 - 100
+          num2 = Math.floor(Math.random() * 8) + 2;   // 2 - 9
+          symbol = "×";
+          answer = num1 * num2;
+          break;
+        case 'DIV':
+          num2 = Math.floor(Math.random() * 8) + 2;   // ตัวหาร 2 - 9
+          answer = Math.floor(Math.random() * 90) + 11; // ผลลัพธ์ลงตัว 11 - 100
+          num1 = num2 * answer;                       // ตัวตั้งเพื่อหารลงตัว
+          symbol = "÷";
+          break;
+      }
+      
+      return {
+        num1,
+        num2,
+        operatorSymbol: symbol,
+        answer,
+        answerThaiText: numberToThaiWord(answer)
+      };
+    }
+
+    function initNewQuizRound(modeCode) {
+      currentMode = modeCode;
+      questionIndex = 1;
+      score = 0;
+      quizHistory = [];
+      
+      let modeText = "";
+      if(modeCode === 'ADD') modeText = "การบวก";
+      else if(modeCode === 'SUB') modeText = "การลบ";
+      else if(modeCode === 'MUL') modeText = "การคูณ";
+      else if(modeCode === 'DIV') modeText = "การหาร";
+      
+      document.getElementById('ui-current-mode').textContent = modeText;
+      updateHeaderProgressUI();
+      loadNextQuestion();
+    }
+
+    function loadNextQuestion() {
+      if (questionIndex > totalQuestions) {
+        finishRound();
+        return;
+      }
+      
+      currentQuiz = makeNewMathQuestion(currentMode);
+      updateHeaderProgressUI();
+      
+      // แสดงข้อสอบบนกระดานหลัก
+      const exprEl = document.getElementById('math-expression');
+      const descEl = document.getElementById('math-text-description');
+      
+      exprEl.textContent = `${currentQuiz.num1.toLocaleString()} ${currentQuiz.operatorSymbol} ${currentQuiz.num2.toLocaleString()} = ?`;
+      descEl.innerHTML = `พูดคำตอบเป็นภาษาไทย เช่น <span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">${currentQuiz.answerThaiText}</span> หรือสั่งเฉลยโดยพูดคำว่า "เฉลย"`;
+      
+      // ซ่อนหน้าต่าง Feedback รอคำตอบข้อใหม่
+      document.getElementById('feedback-panel').classList.add('hidden');
+    }
+
+    function updateHeaderProgressUI() {
+      document.getElementById('ui-question-idx').textContent = currentMode ? `${questionIndex} / ${totalQuestions}` : `0 / 5`;
+      document.getElementById('ui-total-score').textContent = score;
+
+      // อัปเดตจุดแสดงผลกระดานข้างบน
+      const container = document.getElementById('progress-dots-container');
+      container.innerHTML = "";
+      for (let i = 0; i < totalQuestions; i++) {
+        const dot = document.createElement('div');
+        dot.className = `w-4 h-4 rounded-full border transition-all duration-300`;
+        if (quizHistory[i] === true) {
+          dot.classList.add('bg-emerald-500', 'border-emerald-600');
+        } else if (quizHistory[i] === false) {
+          dot.classList.add('bg-rose-500', 'border-rose-600');
+        } else if (i === questionIndex - 1 && currentMode) {
+          dot.classList.add('bg-indigo-500', 'border-indigo-600', 'animate-pulse');
+        } else {
+          dot.classList.add('bg-slate-200', 'border-slate-300');
+        }
+        container.appendChild(dot);
+      }
+    }
+
+    function handleMathAnswer(studentNumber) {
+      if (!currentQuiz) return;
+
+      const fbPanel = document.getElementById('feedback-panel');
+      const fbBadge = document.getElementById('feedback-badge');
+      const fbTitle = document.getElementById('feedback-title');
+      const fbDetail = document.getElementById('feedback-detail');
+
+      fbPanel.classList.remove('hidden');
+
+      if (studentNumber === currentQuiz.answer) {
+        // ผลลัพธ์ถูกต้อง
+        playSound('correct');
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        
+        fbPanel.className = "max-w-md mx-auto p-4 rounded-2xl border bg-emerald-50 border-emerald-200 text-emerald-900 mt-4";
+        fbBadge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase inline-block mb-1 bg-emerald-200 text-emerald-800";
+        fbTitle.textContent = `ถูกต้อง! คำตอบคือ ${currentQuiz.answer.toLocaleString()}`;
+        fbDetail.textContent = `เยี่ยมยอดมาก! ระบบกำลังประมวลผลคำสั่งถัดไปให้คุณ`;
+        
+        score += 20;
+        quizHistory.push(true);
+        speakThai("ถูกต้องค่ะ");
+
+        // หน่วงเวลาข้อถัดไป
+        setTimeout(() => {
+          questionIndex++;
+          loadNextQuestion();
+        }, 2200);
+
+      } else {
+        // ผลลัพธ์ไม่ถูกต้อง
+        playSound('wrong');
+        fbPanel.className = "max-w-md mx-auto p-4 rounded-2xl border bg-rose-50 border-rose-200 text-rose-900 mt-4";
+        fbBadge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase inline-block mb-1 bg-rose-200 text-rose-800";
+        fbTitle.textContent = `คำตอบของคุณยังไม่ถูก (${studentNumber.toLocaleString()})`;
+        fbDetail.textContent = `ลองทบทวนพิจารณาใหม่อีกครั้ง หรือสั่งพูดคำว่า "เฉลย"`;
+        
+        speakThai("ยังไม่ถูกค่ะ");
+      }
+      updateHeaderProgressUI();
+    }
+
+    function triggerRevealAnswer() {
+      if (!currentQuiz) return;
+      
+      const fbPanel = document.getElementById('feedback-panel');
+      const fbBadge = document.getElementById('feedback-badge');
+      const fbTitle = document.getElementById('feedback-title');
+      const fbDetail = document.getElementById('feedback-detail');
+
+      fbPanel.classList.remove('hidden');
+      fbPanel.className = "max-w-md mx-auto p-4 rounded-2xl border bg-amber-50 border-amber-200 text-amber-900 mt-4";
+      fbBadge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase inline-block mb-1 bg-amber-200 text-amber-800";
+      fbTitle.textContent = `เฉลยคำตอบคือ ${currentQuiz.answer.toLocaleString()}`;
+      fbDetail.textContent = `อ่านว่า: ${currentQuiz.answerThaiText}`;
+
+      // บันทึกความไม่ถูกต้องในประวัติข้อสอบ
+      if (quizHistory.length < questionIndex) {
+        quizHistory.push(false);
+      }
+      
+      speakThai(`เฉลยข้อนี้คำตอบคือ ${currentQuiz.answerThaiText} ค่ะ`);
+      updateHeaderProgressUI();
+    }
+
+    function triggerNextQuestionCommand() {
+      if (!currentQuiz) return;
+      if (quizHistory.length < questionIndex) {
+        quizHistory.push(false); // นับว่าผู้ใช้อาจข้ามข้อนี้ไป
+      }
+      questionIndex++;
+      loadNextQuestion();
+    }
+
+    function finishRound() {
+      currentQuiz = null;
+      currentMode = null;
+      playSound('win');
+      
+      const exprEl = document.getElementById('math-expression');
+      const descEl = document.getElementById('math-text-description');
+      const fbPanel = document.getElementById('feedback-panel');
+
+      exprEl.textContent = `จบกิจกรรม! 🎉`;
+      descEl.innerHTML = `คุณทำคะแนนได้ทั้งหมด <span class="text-indigo-600 font-extrabold text-2xl">${score} / 100</span> คะแนน<br>สามารถเลือกพูดคำสั่งสร้างบทเรียนถัดไปเพื่อเริ่มชุดใหม่ได้ทันที`;
+      
+      fbPanel.classList.add('hidden');
+      updateHeaderProgressUI();
+      speakThai(`จบกิจกรรมแล้วค่ะ คะแนนรวมของคุณได้ ${score} คะแนนค่ะ`);
+    }
+
+    // ==========================================
+    // อัลกอริทึมจัดการระบบไมโครโฟนและการแปลงคำสั่ง (Voice Processing)
+    // ==========================================
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'th-TH';
+
+      recognition.onstart = () => {
+        isListening = true;
+        document.getElementById('mic-status-light').className = "w-3.5 h-3.5 rounded-full bg-emerald-500 animate-pulse";
+        document.getElementById('mic-status-text').textContent = "กำลังฟังข้อความเสียงในห้องเรียน...";
+        document.getElementById('btn-toggle-mic').className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl transition text-sm flex items-center justify-center space-x-2";
+        document.getElementById('btn-mic-icon').className = "fa-solid fa-microphone-slash";
+        document.getElementById('btn-mic-text').textContent = "หยุดการรับเสียงชั่วคราว";
+      };
+
+      recognition.onerror = (e) => {
+        if(e.error !== 'no-speech') {
+          console.warn("Speech Recognition Error: ", e.error);
+        }
+      };
+
+      recognition.onend = () => {
+        if (isListening) {
+          // หากเกิดเหตุขัดข้องจากการประมวลผล ให้พยายามรีสตาร์ตไมโครโฟนทำงานต่อเนื่อง
+          try { recognition.start(); } catch(err){}
+        } else {
+          document.getElementById('mic-status-light').className = "w-3.5 h-3.5 rounded-full bg-rose-500";
+          document.getElementById('mic-status-text').textContent = "ปิดการรับเสียง";
+          document.getElementById('btn-toggle-mic').className = "w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl transition text-sm flex items-center justify-center space-x-2";
+          document.getElementById('btn-mic-icon').className = "fa-solid fa-microphone";
+          document.getElementById('btn-mic-text').textContent = "เปิดการรับเสียงพูด";
+        }
+      };
+
+      recognition.onresult = (event) => {
+        try {
+          const resultText = event.results[event.results.length - 1][0].transcript.trim();
+          document.getElementById('speech-live-text').textContent = resultText;
+          processVoiceInput(resultText);
+        } catch (error) {
+          console.error("การประมวลผลสัญญาณผิดพลาด:", error);
+        }
+      };
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'ไมโครโฟนไม่สนับสนุน',
+        text: 'เบราว์เซอร์นี้ไม่รองรับ Speech Recognition ขอแนะนำให้ใช้ Google Chrome'
+      });
+    }
+
+    function toggleMic() {
+      if (!recognition) return;
+      if (isListening) {
+        isListening = false;
+        recognition.stop();
+      } else {
+        isListening = true;
+        recognition.start();
+      }
+    }
+
+    // ==========================================
+    // ตัวประมวลผลคำสั่งระบบ (Command Processor)
+    // ==========================================
+    function processVoiceInput(voiceText) {
+      if (!voiceText) return;
+
+      const cleanVoiceText = voiceText.replace(/\s+/g, "");
+
+      // 1. กลุ่มคำสั่งสร้างคำถามใหม่
+      if (cleanVoiceText.includes("สร้างโจทย์การบวก") || cleanVoiceText.includes("บวกเลข") || cleanVoiceText.includes("สร้างการบวก")) {
+        speakThai("สร้างโจทย์การบวกค่ะ");
+        initNewQuizRound('ADD');
+        return;
+      }
+      if (cleanVoiceText.includes("สร้างโจทย์การลบ") || cleanVoiceText.includes("ลบเลข") || cleanVoiceText.includes("สร้างการลบ")) {
+        speakThai("สร้างโจทย์การลบค่ะ");
+        initNewQuizRound('SUB');
+        return;
+      }
+      if (cleanVoiceText.includes("สร้างโจทย์การคูณ") || cleanVoiceText.includes("คูณเลข") || cleanVoiceText.includes("สร้างการคูณ")) {
+        speakThai("สร้างโจทย์การคูณค่ะ");
+        initNewQuizRound('MUL');
+        return;
+      }
+      if (cleanVoiceText.includes("สร้างโจทย์การหาร") || cleanVoiceText.includes("หารเลข") || cleanVoiceText.includes("สร้างการหาร")) {
+        speakThai("สร้างโจทย์การหารค่ะ");
+        initNewQuizRound('DIV');
+        return;
+      }
+
+      // 2. กลุ่มคำสั่งควบคุม
+      if (cleanVoiceText === "เฉลย" || cleanVoiceText === "เฉลยคำตอบ" || cleanVoiceText.includes("เฉลยหน่อย")) {
+        triggerRevealAnswer();
+        return;
+      }
+      if (cleanVoiceText === "ถัดไป" || cleanVoiceText === "ข้าม" || cleanVoiceText.includes("เปลี่ยนข้อ")) {
+        triggerNextQuestionCommand();
+        return;
+      }
+
+      // 3. ตรวจสอบการแปลงค่าคำอ่านตัวเลขเป็นค่าเพื่อพิจารณาตอบคำถาม
+      if (currentQuiz) {
+        const potentialNumber = parseThaiNumberWord(cleanVoiceText);
+        if (potentialNumber !== null) {
+          handleMathAnswer(potentialNumber);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
